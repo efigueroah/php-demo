@@ -1,0 +1,42 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      php: 8.2
+    commands:
+      - echo "Installing dependencies..."
+      - curl -sS https://getcomposer.org/installer | php
+      - mv composer.phar /usr/local/bin/composer
+      
+  pre_build:
+    commands:
+      - echo "Pre-build phase started on `date`"
+      - composer install --no-dev --optimize-autoloader
+      - php -l index.php
+      - php -l src/Calculator.php
+      
+  build:
+    commands:
+      - echo "Build phase started on `date`"
+      - echo "Installing dev dependencies for testing..."
+      - composer install --dev
+      - echo "Running unit tests..."
+      - vendor/bin/phpunit tests/ --configuration phpunit.xml
+      
+  post_build:
+    commands:
+      - echo "Post-build phase completed on `date`"
+      - echo "Removing dev dependencies..."
+      - composer install --no-dev --optimize-autoloader
+      - echo "Creating deployment package..."
+
+artifacts:
+  files:
+    - '**/*'
+  exclude-paths:
+    - 'tests/**/*'
+    - '.git/**/*'
+    - 'README.md'
+    - 'phpunit.xml'
+    - 'coverage/**/*'
