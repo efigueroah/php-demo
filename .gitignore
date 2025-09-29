@@ -1,0 +1,44 @@
+# PHP
+*.log
+*.tmp
+*.cache
+/vendor/
+composer.phar
+composer.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+/coverage/
+.phpunit.result.cache
+
+# Environment
+.env
+.env.local
+.env.production
+
+# AWS
+.aws/
+aws-exports.js
+
+# Build artifacts (CodeBuild genera estos)
+/build/
+/dist/
+
+# Logs
+error.log
+access.log
+php_errors.log
+
+# Temporary files
+/tmp/
+/temp/
