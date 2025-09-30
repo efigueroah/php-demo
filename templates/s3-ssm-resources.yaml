@@ -1,0 +1,98 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'S3 Bucket for artifacts and SSM Parameters for php-demo-dev'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: php-demo-dev
+    Description: Project name for resource naming
+  
+  BucketName:
+    Type: String
+    Default: php-demo-dev-artifacts
+    Description: S3 bucket name for artifacts
+
+Resources:
+  # S3 Bucket for Artifacts
+  ArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: cleanup-old-artifacts
+            Status: Enabled
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 7
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+
+  # SSM Parameters
+  EnvironmentParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/app/environment'
+      Type: String
+      Value: development
+      Description: Application environment
+
+  DebugParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/app/debug'
+      Type: String
+      Value: 'true'
+      Description: Debug mode flag
+
+  LogLevelParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub '/${ProjectName}/app/log_level'
+      Type: String
+      Value: info
+      Description: Application log level
+
+Outputs:
+  BucketName:
+    Description: S3 Artifacts Bucket Name
+    Value: !Ref ArtifactsBucket
+    Export:
+      Name: !Sub '${ProjectName}-artifacts-bucket-name'
+
+  BucketArn:
+    Description: S3 Artifacts Bucket ARN
+    Value: !GetAtt ArtifactsBucket.Arn
+    Export:
+      Name: !Sub '${ProjectName}-artifacts-bucket-arn'
+
+  EnvironmentParameterName:
+    Description: Environment Parameter Name
+    Value: !Ref EnvironmentParameter
+    Export:
+      Name: !Sub '${ProjectName}-environment-parameter'
+
+  DebugParameterName:
+    Description: Debug Parameter Name
+    Value: !Ref DebugParameter
+    Export:
+      Name: !Sub '${ProjectName}-debug-parameter'
+
+  LogLevelParameterName:
+    Description: Log Level Parameter Name
+    Value: !Ref LogLevelParameter
+    Export:
+      Name: !Sub '${ProjectName}-log-level-parameter'

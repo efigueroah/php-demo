@@ -1,0 +1,10 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "php-demo-dev"
+  },
+  {
+    "ParameterKey": "BucketName",
+    "ParameterValue": "php-demo-dev-artifacts"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "ParameterKey": "ProjectName",
+    "ParameterValue": "php-demo-dev"
+  },
+  {
+    "ParameterKey": "ArtifactsBucketName",
+    "ParameterValue": "php-demo-dev-artifacts"
+  },
+  {
+    "ParameterKey": "SSMParameterPrefix",
+    "ParameterValue": "/php-demo-dev/"
+  }
+]

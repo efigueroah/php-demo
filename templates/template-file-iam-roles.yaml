@@ -1,0 +1,202 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'IAM roles - CodePipeline, CodeBuild, CodeDeploy e Instancias EC2'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: php-demo-dev
+    Description: Nombre de Proyecto para nombre de los recursos
+  
+  ArtifactsBucketName:
+    Type: String
+    Default: php-demo-dev-artifacts
+    Description: Nombre del bucket S3 bucket creado para los artifacts
+  
+  SSMParameterPrefix:
+    Type: String
+    Default: /php-demo-dev/
+    Description: Prefijo de ruta del SSM parameter
+
+Resources:
+  # CodePipeline Role
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codepipeline-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-codepipeline-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetBucketVersioning
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}/*'
+              - Effect: Allow
+                Action: codestar-connections:UseConnection
+                Resource: !Sub 'arn:aws:codestar-connections:${AWS::Region}:${AWS::AccountId}:connection/*'
+              - Effect: Allow
+                Action:
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - codedeploy:CreateDeployment
+                  - codedeploy:GetApplication
+                  - codedeploy:GetApplicationRevision
+                  - codedeploy:GetDeployment
+                  - codedeploy:GetDeploymentConfig
+                  - codedeploy:RegisterApplicationRevision
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeInstances
+                  - autoscaling:DescribeAutoScalingGroups
+                  - autoscaling:CompleteLifecycleAction
+                  - autoscaling:DeleteLifecycleHook
+                  - autoscaling:DescribeLifecycleHooks
+                  - autoscaling:DescribeAutoScalingInstances
+                  - autoscaling:PutLifecycleHook
+                  - autoscaling:RecordLifecycleActionHeartbeat
+                  - tag:GetResources
+                Resource: '*'
+
+  # CodeBuild Role
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codebuild-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-codebuild-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}/*'
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*'
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter${SSMParameterPrefix}*'
+
+  # CodeDeploy Role
+  CodeDeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-codedeploy-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codedeploy.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole
+
+  # EC2 Instance Role
+  EC2InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-ec2-instance-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforAWSCodeDeploy
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+        - PolicyName: !Sub '${ProjectName}-ec2-artifacts-policy'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}'
+                  - !Sub 'arn:aws:s3:::${ArtifactsBucketName}/*'
+
+  # EC2 Instance Profile
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub '${ProjectName}-ec2-instance-profile'
+      Roles:
+        - !Ref EC2InstanceRole
+
+Outputs:
+  CodePipelineRoleArn:
+    Description: CodePipeline Role ARN
+    Value: !GetAtt CodePipelineRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-codepipeline-role-arn'
+  
+  CodeBuildRoleArn:
+    Description: CodeBuild Role ARN
+    Value: !GetAtt CodeBuildRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-codebuild-role-arn'
+  
+  CodeDeployRoleArn:
+    Description: CodeDeploy Role ARN
+    Value: !GetAtt CodeDeployRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-codedeploy-role-arn'
+
+  EC2InstanceRoleArn:
+    Description: EC2 Instance Role ARN
+    Value: !GetAtt EC2InstanceRole.Arn
+    Export:
+      Name: !Sub '${ProjectName}-ec2-instance-role-arn'
+
+  EC2InstanceProfileArn:
+    Description: EC2 Instance Profile ARN
+    Value: !GetAtt EC2InstanceProfile.Arn
+    Export:
+      Name: !Sub '${ProjectName}-ec2-instance-profile-arn'
+
+  EC2InstanceProfileName:
+    Description: EC2 Instance Profile Name
+    Value: !Ref EC2InstanceProfile
+    Export:
+      Name: !Sub '${ProjectName}-ec2-instance-profile-name'
+
+
+
